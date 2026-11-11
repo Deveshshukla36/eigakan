@@ -87,34 +87,13 @@
 
   <div class="hall">
     <main class="house">
-      <div class="ceiling">
-        <svg class="chandelier"><use href="#chandelier"/></svg>
-        <div class="marquee"><span id="nowShowing">Intermission</span></div>
-        <svg class="chandelier"><use href="#chandelier"/></svg>
-      </div>
-
-      <div class="proscenium" id="proscenium">
-        <div id="screen" class="screen"></div>
-        <div class="drape left"></div>
-        <div class="drape right"></div>
-        <svg class="swags" viewBox="0 0 1000 130" preserveAspectRatio="none" aria-hidden="true">
-          <rect width="1000" height="26" fill="url(#velvetDark)"/>
-          <path d="M0 0 Q100 150 200 0 Q300 150 400 0 Q500 150 600 0 Q700 150 800 0 Q900 150 1000 0Z" fill="url(#velvetDark)"/>
-          <path d="M-100 0 Q0 118 100 0 Q200 118 300 0 Q400 118 500 0 Q600 118 700 0 Q800 118 900 0 Q1000 118 1100 0Z" fill="url(#velvet)"/>
-          <path d="M20 8 Q100 70 180 8 M220 8 Q300 70 380 8 M420 8 Q500 70 580 8 M620 8 Q700 70 780 8 M820 8 Q900 70 980 8
-                   M45 6 Q100 40 155 6 M245 6 Q300 40 355 6 M445 6 Q500 40 555 6 M645 6 Q700 40 755 6 M845 6 Q900 40 955 6"
-                fill="none" stroke="#3f0307" stroke-opacity=".55" stroke-width="2"/>
-        </svg>
-      </div>
-      <div class="stage-step"></div>
-
-      <div class="controls">
-        <button class="btn" id="btnLink">🎬 Play a link</button>
-        <button class="btn" id="btnFile">📁 Play a file</button>
-        <button class="btn" id="btnShare">🖥️ Share my screen</button>
-        <button class="btn" id="btnGames">🎮 Games</button>
-        <button class="btn" id="btnFull">⛶ Fullscreen</button>
-        <button class="btn dim" id="btnClear">Clear screen</button>
+      <div class="booth">
+        <button class="btn" id="btnLink" title="Play a YouTube or video link">🎬 Link</button>
+        <button class="btn" id="btnFile" title="Play a video file from your device">📁 File</button>
+        <button class="btn" id="btnShare" title="Share your screen">🖥️ Share</button>
+        <button class="btn" id="btnGames" title="Play a game together">🎮 Games</button>
+        <button class="btn" id="btnFull" title="Fullscreen">⛶</button>
+        <button class="btn dim" id="btnClear" title="Clear the screen">✕ Clear</button>
         <input type="file" id="fileInput" accept="video/*,audio/*,.mkv" hidden>
       </div>
       <form id="linkForm" class="drawer row" hidden>
@@ -122,9 +101,31 @@
         <button class="btn gold">Play for everyone</button>
       </form>
       <div id="gameMenu" class="drawer row" hidden>
+        <button class="btn" data-game="brawl">Slam Night <small>wrestling · 2 players</small></button>
+        <button class="btn" data-game="kick">Kickoff <small>football · 2 players</small></button>
         <button class="btn" data-game="ttt">Tic-Tac-Toe <small>2 players</small></button>
         <button class="btn" data-game="four">Four in a Row <small>2 players</small></button>
         <button class="btn" data-game="draw">Draw &amp; Guess <small>everyone</small></button>
+      </div>
+
+      <!-- the 3D hall: walls, ceiling and floor are drawn in perspective by app.js -->
+      <div class="scene" id="scene">
+        <svg id="hallArt" class="hall-art" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="marquee"><span id="nowShowing">Intermission</span></div>
+        <div class="proscenium" id="proscenium">
+          <div id="screen" class="screen"></div>
+          <div class="drape left"></div>
+          <div class="drape right"></div>
+          <svg class="swags" viewBox="0 0 1000 130" preserveAspectRatio="none" aria-hidden="true">
+            <rect width="1000" height="26" fill="url(#velvetDark)"/>
+            <path d="M0 0 Q100 150 200 0 Q300 150 400 0 Q500 150 600 0 Q700 150 800 0 Q900 150 1000 0Z" fill="url(#velvetDark)"/>
+            <path d="M-100 0 Q0 118 100 0 Q200 118 300 0 Q400 118 500 0 Q600 118 700 0 Q800 118 900 0 Q1000 118 1100 0Z" fill="url(#velvet)"/>
+            <path d="M20 8 Q100 70 180 8 M220 8 Q300 70 380 8 M420 8 Q500 70 580 8 M620 8 Q700 70 780 8 M820 8 Q900 70 980 8
+                     M45 6 Q100 40 155 6 M245 6 Q300 40 355 6 M445 6 Q500 40 555 6 M645 6 Q700 40 755 6 M845 6 Q900 40 955 6"
+                  fill="none" stroke="#3f0307" stroke-opacity=".55" stroke-width="2"/>
+          </svg>
+        </div>
+        <svg id="hallLamps" class="hall-art lamps" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true"></svg>
       </div>
 
       <div class="seats" id="seats"></div>

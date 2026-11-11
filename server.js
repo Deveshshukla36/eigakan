@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
 const { Server } = require('socket.io');
+const arcade = require('./arcade');
 
 const scrypt = promisify(crypto.scrypt);
 const PORT = process.env.PORT || 3000;
@@ -159,7 +160,7 @@ function setStage(r, stage) {
 }
 
 /* ---------- games ---------- */
-const GAME_NAMES = { ttt: 'Tic-Tac-Toe', four: 'Four in a Row', draw: 'Draw & Guess' };
+const GAME_NAMES = { ttt: 'Tic-Tac-Toe', four: 'Four in a Row', draw: 'Draw & Guess', brawl: 'Slam Night', kick: 'Kickoff' };
 const TTT_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 const ROUND_MS = 80000;
 const WORDS = ['popcorn', 'pirate', 'rocket', 'dragon', 'guitar', 'castle', 'rainbow', 'robot', 'pizza', 'elephant',
@@ -170,6 +171,7 @@ const WORDS = ['popcorn', 'pirate', 'rocket', 'dragon', 'guitar', 'castle', 'rai
   'cowboy', 'alien', 'balloon', 'hammer', 'ice cream', 'roller coaster', 'haunted house', 'time machine', 'movie ticket', 'red carpet'];
 
 function newGame(type) {
+  if (arcade.TYPES.includes(type)) return { type, arcade: true, players: [], sim: null, timer: null, inputs: [{}, {}], result: null };
   if (type === 'ttt') return { type, players: [], board: Array(9).fill(null), turn: 0, starts: 0, winner: null, line: null };
   if (type === 'four') return { type, players: [], board: Array(42).fill(null), turn: 0, starts: 0, winner: null, line: null };
   return { type, phase: 'waiting', round: 0, drawer: null, drawerName: '', word: null, guessed: [], strokes: [],
@@ -185,6 +187,7 @@ function resetBoard(g, flip) {
 function gamePublic(r, full) {
   const g = r.game;
   if (!g) return null;
+  if (g.arcade) return { type: g.type, arcade: true, players: g.players, running: !!g.sim, result: g.result };
   if (g.type !== 'draw') {
     return { type: g.type, players: g.players, board: g.board, turn: g.turn, winner: g.winner, line: g.line };
   }
@@ -197,6 +200,37 @@ function gamePublic(r, full) {
   return out;
 }
 const emitGame = (r) => io.to(r.code).emit('game', gamePublic(r));
+
+/* real-time games: the server runs the match and streams frames */
+function stopArcade(g) {
+  clearInterval(g.timer);
+  g.timer = null;
+  g.sim = null;
+  g.inputs = [{}, {}];
+}
+function startArcade(r, g) {
+  stopArcade(g);
+  g.result = null;
+  g.sim = arcade.create(g.type);
+  g.timer = setInterval(() => {
+    if (r.game !== g || !g.sim) return clearInterval(g.timer);
+    g.sim.step(g.inputs, 1 / 30);
+    if (g.sim.over) {
+      io.to(r.code).emit('arcade', g.sim.view());
+      g.result = g.sim.over;
+      stopArcade(g);
+      emitGame(r);
+    } else io.to(r.code).volatile.emit('arcade', g.sim.view());
+  }, 1000 / 30);
+  emitGame(r);
+}
+function unseat(r, g, id) {
+  const i = g.players.findIndex((p) => p.id === id);
+  if (i < 0) return;
+  g.players.splice(i, 1);
+  if (g.arcade) { stopArcade(g); g.result = null; } else resetBoard(g, false);
+  emitGame(r);
+}
 
 function fourWin(b) {
   for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) {
@@ -304,8 +338,7 @@ function leave(socket) {
   if (r.stage.kind === 'share' && r.stage.sharer === socket.id) setStage(r, { kind: 'none' });
   const g = r.game;
   if (g && g.type !== 'draw') {
-    const i = g.players.findIndex((p) => p.id === socket.id);
-    if (i >= 0) { g.players.splice(i, 1); resetBoard(g, false); emitGame(r); }
+    unseat(r, g, socket.id);
   } else if (g && g.drawer === socket.id) {
     endRound(r, g);
   }
@@ -404,28 +437,33 @@ io.on('connection', (socket) => {
     const r = roomOf(socket), g = r && r.game;
     if (!g || g.type === 'draw' || g.players.length >= 2 || g.players.some((p) => p.id === socket.id)) return;
     g.players.push({ id: socket.id, name });
-    emitGame(r);
+    if (g.arcade && g.players.length === 2) startArcade(r, g); else emitGame(r);
   });
   socket.on('game:leave', () => {
     const r = roomOf(socket), g = r && r.game;
-    if (!g || g.type === 'draw') return;
-    const i = g.players.findIndex((p) => p.id === socket.id);
-    if (i < 0) return;
-    g.players.splice(i, 1);
-    resetBoard(g, false);
-    emitGame(r);
+    if (g && g.type !== 'draw') unseat(r, g, socket.id);
   });
   socket.on('game:move', (m) => {
     const r = roomOf(socket), g = r && r.game;
-    if (!g || g.type === 'draw' || g.players.length < 2 || g.winner !== null) return;
+    if (!g || g.type === 'draw' || g.arcade || g.players.length < 2 || g.winner !== null) return;
     if (g.players[g.turn].id !== socket.id) return;
     if (boardMove(g, g.turn, m)) emitGame(r);
   });
   socket.on('game:reset', () => {
     const r = roomOf(socket), g = r && r.game;
     if (!g || g.type === 'draw' || !g.players.some((p) => p.id === socket.id)) return;
+    if (g.arcade) { if (g.players.length === 2) startArcade(r, g); return; }
     resetBoard(g, true);
     emitGame(r);
+  });
+  socket.on('game:input', (inp) => {
+    const r = roomOf(socket), g = r && r.game;
+    if (!g || !g.arcade || !g.sim || !inp || typeof inp !== 'object') return;
+    const seat = g.players.findIndex((p) => p.id === socket.id);
+    if (seat < 0) return;
+    const clean = {};
+    for (const k of ['l', 'r', 'u', 'd', 'a', 'b', 'c']) clean[k] = inp[k] === true;
+    g.inputs[seat] = clean;
   });
   socket.on('draw:stroke', (s) => {
     const r = roomOf(socket), g = r && r.game;
