@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eigakan — Private Movie Theater</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- reusable artwork -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="velvet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0202c"/><stop offset=".55" stop-color="#a30d17"/><stop offset="1" stop-color="#5d060c"/>
+    </linearGradient>
+    <linearGradient id="velvetDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9c0d16"/><stop offset="1" stop-color="#3f0307"/>
+    </linearGradient>
+    <symbol id="chandelier" viewBox="0 0 120 150">
+      <line x1="60" y1="0" x2="60" y2="52" stroke="#d9b66a" stroke-width="2"/>
+      <path d="M60 52 C40 60 22 62 14 84 M60 52 C80 60 98 62 106 84 M60 52 C50 66 40 72 36 92 M60 52 C70 66 80 72 84 92 M60 52 L60 98"
+            fill="none" stroke="#e6c67c" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M14 88 Q60 128 106 88" fill="none" stroke="#f3dfae" stroke-width="1.5" stroke-dasharray="1 5" stroke-linecap="round"/>
+      <path d="M36 96 Q60 120 84 96" fill="none" stroke="#f3dfae" stroke-width="1.5" stroke-dasharray="1 5" stroke-linecap="round"/>
+      <g fill="#fff6d8">
+        <circle cx="14" cy="78" r="5"/><circle cx="106" cy="78" r="5"/><circle cx="36" cy="86" r="5"/>
+        <circle cx="84" cy="86" r="5"/><circle cx="60" cy="100" r="6"/>
+      </g>
+      <path d="M60 108 l5 12 -5 16 -5 -16z" fill="#f6e7bd" opacity=".9"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ============ BOX OFFICE (login / register) ============ -->
+<section id="auth" class="view foyer" hidden>
+  <svg class="chandelier c-left"><use href="#chandelier"/></svg>
+  <svg class="chandelier c-right"><use href="#chandelier"/></svg>
+  <div class="card ticket">
+    <h1 class="logo">Eigakan</h1>
+    <p class="tagline">Your private movie theater — watch, chat and play together</p>
+    <div class="tabs">
+      <button type="button" id="tabLogin" class="tab active">Log in</button>
+      <button type="button" id="tabRegister" class="tab">Create account</button>
+    </div>
+    <form id="authForm">
+      <label>Username<input id="authUser" autocomplete="username" maxlength="20" required></label>
+      <label>Password<input id="authPass" type="password" autocomplete="current-password" maxlength="100" required></label>
+      <p id="authError" class="error" role="alert"></p>
+      <button class="btn gold" id="authSubmit">Enter the theater</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ LOBBY ============ -->
+<section id="lobby" class="view foyer" hidden>
+  <svg class="chandelier c-left"><use href="#chandelier"/></svg>
+  <svg class="chandelier c-right"><use href="#chandelier"/></svg>
+  <div class="card ticket">
+    <h1 class="logo">Eigakan</h1>
+    <p class="tagline">Welcome, <b id="lobbyName"></b></p>
+    <button class="btn gold" id="newRoom">Open a new theater</button>
+    <div class="or"><span>or join your friends</span></div>
+    <form id="joinForm" class="row">
+      <input id="joinCode" placeholder="Theater code" maxlength="12" autocomplete="off" required>
+      <button class="btn">Join</button>
+    </form>
+    <button class="link" id="logoutBtn">Log out</button>
+  </div>
+</section>
+
+<!-- ============ THE THEATER ============ -->
+<section id="room" class="view" hidden>
+  <header class="topbar">
+    <div class="logo small">Eigakan</div>
+    <div class="roominfo">Theater <b id="roomCode"></b>
+      <button class="btn tiny gold" id="copyLink">Copy invite link</button>
+    </div>
+    <div class="who"><span id="meName"></span>
+      <button class="btn tiny" id="leaveBtn">Lobby</button>
+      <button class="btn tiny" id="logoutBtn2">Log out</button>
+    </div>
+  </header>
+
+  <div class="hall">
+    <main class="house">
+      <div class="ceiling">
+        <svg class="chandelier"><use href="#chandelier"/></svg>
+        <div class="marquee"><span id="nowShowing">Intermission</span></div>
+        <svg class="chandelier"><use href="#chandelier"/></svg>
+      </div>
+
+      <div class="proscenium" id="proscenium">
+        <div id="screen" class="screen"></div>
+        <div class="drape left"></div>
+        <div class="drape right"></div>
+        <svg class="swags" viewBox="0 0 1000 130" preserveAspectRatio="none" aria-hidden="true">
+          <rect width="1000" height="26" fill="url(#velvetDark)"/>
+          <path d="M0 0 Q100 150 200 0 Q300 150 400 0 Q500 150 600 0 Q700 150 800 0 Q900 150 1000 0Z" fill="url(#velvetDark)"/>
+          <path d="M-100 0 Q0 118 100 0 Q200 118 300 0 Q400 118 500 0 Q600 118 700 0 Q800 118 900 0 Q1000 118 1100 0Z" fill="url(#velvet)"/>
+          <path d="M20 8 Q100 70 180 8 M220 8 Q300 70 380 8 M420 8 Q500 70 580 8 M620 8 Q700 70 780 8 M820 8 Q900 70 980 8
+                   M45 6 Q100 40 155 6 M245 6 Q300 40 355 6 M445 6 Q500 40 555 6 M645 6 Q700 40 755 6 M845 6 Q900 40 955 6"
+                fill="none" stroke="#3f0307" stroke-opacity=".55" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="stage-step"></div>
+
+      <div class="controls">
+        <button class="btn" id="btnLink">🎬 Play a link</button>
+        <button class="btn" id="btnFile">📁 Play a file</button>
+        <button class="btn" id="btnShare">🖥️ Share my screen</button>
+        <button class="btn" id="btnGames">🎮 Games</button>
+        <button class="btn" id="btnFull">⛶ Fullscreen</button>
+        <button class="btn dim" id="btnClear">Clear screen</button>
+        <input type="file" id="fileInput" accept="video/*,audio/*,.mkv" hidden>
+      </div>
+      <form id="linkForm" class="drawer row" hidden>
+        <input id="linkInput" placeholder="Paste a YouTube link or a direct video link (.mp4 / .webm)" autocomplete="off" required>
+        <button class="btn gold">Play for everyone</button>
+      </form>
+      <div id="gameMenu" class="drawer row" hidden>
+        <button class="btn" data-game="ttt">Tic-Tac-Toe <small>2 players</small></button>
+        <button class="btn" data-game="four">Four in a Row <small>2 players</small></button>
+        <button class="btn" data-game="draw">Draw &amp; Guess <small>everyone</small></button>
+      </div>
+
+      <div class="seats" id="seats"></div>
+    </main>
+
+    <aside class="chat">
+      <h2>Whispers</h2>
+      <div id="chatLog" class="chat-log"></div>
+      <form id="chatForm" class="row">
+        <input id="chatInput" placeholder="Say something…" maxlength="500" autocomplete="off">
+        <button class="btn gold">Send</button>
+      </form>
+    </aside>
+  </div>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
