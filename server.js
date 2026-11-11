@@ -111,6 +111,21 @@ app.get('/api/me', (req, res) => {
   res.json({ name });
 });
 
+// WebRTC servers for screen sharing. STUN is enough on most home networks; set TURN_URLS,
+// TURN_USERNAME and TURN_CREDENTIAL on the host to add a relay for strict networks.
+app.get('/api/ice', (req, res) => {
+  if (!userFromCookie(req.headers.cookie)) return res.status(401).json({ error: 'Not logged in' });
+  const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  if (process.env.TURN_URLS) {
+    iceServers.push({
+      urls: process.env.TURN_URLS.split(',').map((u) => u.trim()).filter(Boolean),
+      username: process.env.TURN_USERNAME || '',
+      credential: process.env.TURN_CREDENTIAL || '',
+    });
+  }
+  res.json({ iceServers });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ---------- realtime: rooms ---------- */

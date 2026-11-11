@@ -377,10 +377,12 @@ setInterval(() => {
 }, 8000);
 
 /* ---------- screen sharing (WebRTC) ---------- */
-const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
+let ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
 let localStream = null;
 let shareVideo = null;
-const peers = new Map(); // socket id -> { pc, chain }
+let shareNote = null;
+const peers = new Map();    // socket id -> { pc, chain }
+const earlyIce = new Map(); // socket id -> candidates that arrived before the offer
 
 function stopLocalStream() {
   if (!localStream) return;
@@ -390,6 +392,7 @@ function stopLocalStream() {
 function closePeers() {
   for (const p of peers.values()) p.pc.close();
   peers.clear();
+  earlyIce.clear();
 }
 function prunePeers() {
   for (const [id, p] of peers) {
@@ -405,6 +408,15 @@ function newPeer(id) {
   return p;
 }
 const enqueue = (p, fn) => { p.chain = p.chain.then(fn).catch((err) => console.warn('rtc', err)); };
+
+function setShareNote(text, label, onClick) {
+  if (shareNote) { shareNote.remove(); shareNote = null; }
+  if (text && shareVideo && shareVideo.isConnected) shareNote = overlay(text, label, onClick);
+}
+function requestShare() {
+  setShareNote(`Connecting to ${stage.name}'s screen…`);
+  socket.emit('share:want');
+}
 
 async function startShare() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
@@ -422,6 +434,7 @@ async function startShare() {
   socket.emit('share:start');
 }
 function buildShare() {
+  shareNote = null;
   shareVideo = el('video', { autoplay: '', playsinline: '', controls: '' });
   screen.append(shareVideo);
   if (stage.sharer === myId) {
@@ -429,7 +442,7 @@ function buildShare() {
     shareVideo.srcObject = localStream;
     screen.append(el('div', { class: 'badge', text: '● Live — everyone in the theater can see this' }));
   } else {
-    socket.emit('share:want');
+    requestShare();
   }
 }
 function onShareWant({ from }) {
@@ -438,6 +451,8 @@ function onShareWant({ from }) {
   localStream.getTracks().forEach((t) => p.pc.addTrack(t, localStream));
   enqueue(p, async () => {
     await p.pc.setLocalDescription(await p.pc.createOffer());
+    // send the offer straight away so it always reaches the viewer before our network candidates do
+    socket.emit('rtc', { to: from, data: { sdp: p.pc.localDescription } });
     for (const sender of p.pc.getSenders()) {
       if (!sender.track || sender.track.kind !== 'video') continue;
       try {
@@ -448,7 +463,6 @@ function onShareWant({ from }) {
         }
       } catch {}
     }
-    socket.emit('rtc', { to: from, data: { sdp: p.pc.localDescription } });
   });
 }
 function onRtc({ from, data }) {
@@ -457,8 +471,8 @@ function onRtc({ from, data }) {
   if (data.sdp && data.sdp.type === 'offer') {
     if (stage.kind !== 'share' || stage.sharer !== from) return;
     p = newPeer(from);
-    const video = shareVideo;
-    p.pc.ontrack = (e) => {
+    const video = shareVideo, pc = p.pc;
+    pc.ontrack = (e) => {
       if (video.srcObject === e.streams[0]) return;
       video.srcObject = e.streams[0];
       video.play().catch(() => {
@@ -467,14 +481,30 @@ function onRtc({ from, data }) {
         if (video.isConnected) overlay('Sound is muted by your browser.', '🔊 Turn sound on', (o) => { video.muted = false; video.play(); o.remove(); });
       });
     };
+    pc.onconnectionstatechange = () => {
+      if (peers.get(from) !== p || video !== shareVideo) return;
+      if (pc.connectionState === 'connected') setShareNote(null);
+      else if (pc.connectionState === 'failed') {
+        setShareNote("Couldn't connect to the shared screen. One of your networks is blocking direct connections.", 'Try again', requestShare);
+      }
+    };
   }
-  if (!p) return;
+  if (!p) { // candidate arrived before its offer: keep it for later
+    if (data.ice) {
+      const list = earlyIce.get(from) || [];
+      if (list.length < 60) list.push(data.ice);
+      earlyIce.set(from, list);
+    }
+    return;
+  }
   enqueue(p, async () => {
     if (data.sdp) {
       await p.pc.setRemoteDescription(data.sdp);
       if (data.sdp.type === 'offer') {
         await p.pc.setLocalDescription(await p.pc.createAnswer());
         socket.emit('rtc', { to: from, data: { sdp: p.pc.localDescription } });
+        for (const ice of earlyIce.get(from) || []) await p.pc.addIceCandidate(ice).catch(() => {});
+        earlyIce.delete(from);
       }
     } else if (data.ice) {
       await p.pc.addIceCandidate(data.ice);
@@ -973,6 +1003,7 @@ $('#btnFull').onclick = () => {
 /* ---------- boot ---------- */
 (async () => {
   try { me = (await api('me')).name; } catch { me = null; }
+  try { const ice = await api('ice'); if (ice.iceServers && ice.iceServers.length) ICE = ice; } catch {}
   route();
 })();
 })();
